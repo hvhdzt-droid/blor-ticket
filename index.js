@@ -121,7 +121,7 @@ client.on("interactionCreate", async (interaction) => {
       const ticketChannel = await guild.channels.create({
         name: `ticket-${user.username}`,
         type: ChannelType.GuildText,
-        parent: CONFIG.CATEGORY_ID !== "ضع_هنا_آيدي_الكتيجوري" ? CONFIG.CATEGORY_ID : null,
+        parent: CONFIG.CATEGORY_ID !== "1507673725942628522" ? CONFIG.CATEGORY_ID : null,
         permissionOverwrites: [
           {
             id: guild.id,
@@ -137,7 +137,7 @@ client.on("interactionCreate", async (interaction) => {
             ]
           },
           {
-            id: CONFIG.STAFF_ROLE_ID !== "ضع_هنا_آيدي_رتبة_الادارة" ? CONFIG.STAFF_ROLE_ID : guild.id,
+            id: CONFIG.STAFF_ROLE_ID !== "1507680371414929438" ? CONFIG.STAFF_ROLE_ID : guild.id,
             allow: [
               PermissionFlagsBits.ViewChannel,
               PermissionFlagsBits.SendMessages,
