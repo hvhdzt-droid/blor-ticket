@@ -155,3 +155,7 @@ client.on("interactionCreate", async (interaction) => {
 
       const closeButton = new ButtonBuilder()
         .setCustomId("
+const express = require("express");
+const app = express();
+app.get("/", (req, res) => res.send("البوت شغال!"));
+app.listen(process.env.PORT || 3000);
