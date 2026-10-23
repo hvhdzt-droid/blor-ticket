@@ -1,3 +1,4 @@
+
 const {
   Client,
   GatewayIntentBits,
@@ -7,150 +8,217 @@ const {
   ButtonStyle,
   EmbedBuilder,
   ChannelType,
-  PermissionFlagsBits
+  PermissionFlagsBits,
+  SlashCommandBuilder,
+  REST,
+  Routes
 } = require("discord.js");
+
 const express = require("express");
 
-// تشغيل سيرفر الويب الوهمي لبقاء البوت شغال مجاناً على Render
 const app = express();
-app.get("/", (req, res) => res.send("Bot is Online and Ready!"));
-app.listen(process.env.PORT || 3000);
-
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
-  ]
+app.get("/", (req, res) => res.send("Rase Tickets is online!"));
+app.listen(process.env.PORT || 3000, "0.0.0.0", () => {
+  console.log("Web server is running.");
 });
 
-// ⚙️ إعدادات البوت (تستطيع تعديلها حسب رغبتك)
 const CONFIG = {
-  STAFF_ROLE_ID: "1507680371414929438", // آيدي رتبة الإدارة التي ستشاهد التذاكر
-  CATEGORY_ID: "1507673669386895391",              // آيدي القسم (Category) لتنظيم التذاكر (اختياري)
-  TICKET_IMAGE_URL: "https://media.discordapp.net/attachments/1475361722155143298/1507700140834685008/image.png?ex=6adb3ead&is=6ad9ed2d&hm=e9d1152d8c78ee3ac8c5e92fd1ebe8ece3f74175a3d9a81e68242c9ae60d67f9&=&format=webp&quality=lossless"                // رابط صورة الغلاف (اختياري، اتركه هكذا إن لم ترد صورة)
+  STAFF_ROLE_ID: "1507680371414929438",
+  CATEGORY_ID: "1507673669386895391",
+  TICKET_IMAGE_URL:
+    "https://media.discordapp.net/attachments/1475361722155143298/1507700140834685008/image.png"
 };
 
-client.once("ready", () => {
-  console.log(`✅ تم تسجيل الدخول بنجاح باسم: ${client.user.tag}`);
+const TOKEN = process.env.TOKEN;
+const CLIENT_ID = process.env.CLIENT_ID;
+const GUILD_ID = process.env.GUILD_ID;
+
+if (!TOKEN || !CLIENT_ID || !GUILD_ID) {
+  console.error("Missing TOKEN, CLIENT_ID, or GUILD_ID environment variable.");
+  process.exit(1);
+}
+
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds]
 });
 
-// 📌 أمر إرسال لوحة التذاكر عبر كتابة: !setup
-client.on("messageCreate", async (message) => {
-  if (message.author.bot) return;
+const setupCommand = new SlashCommandBuilder()
+  .setName("setup-ticket")
+  .setDescription("إرسال لوحة نظام التذاكر");
 
-  if (message.content === "!setup") {
-    if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
-      return message.reply("❌ عذراً، هذا الأمر مخصص للمسؤولين فقط.");
-    }
+async function registerCommand() {
+  const rest = new REST({ version: "10" }).setToken(TOKEN);
 
-    const embed = new EmbedBuilder()
-      .setTitle("💬 مركز المساعدة والتواصل للسيرفر")
-      .setDescription(
-        "مرحباً بك في مركز الدعم! 👋\n" +
-        "إذا كان لديك أي استفسار، شكوى، أو فكرة تحب تشاركنا إياها، يرجى فتح تذكرة من القائمة أدناه.\n\n" +
-        "🛠️ **مساعدة عامة:** للاستفسارات عن السيرفر، الفعاليات، والرتب.\n" +
-        "🚨 **بلاغ / شكوى:** للإبلاغ عن أي مخالفة أو مشكلة داخل السيرفر.\n" +
-        "💡 **اقتراح:** لتقديم أفكار وتطويرات جديدة لتحسين السيرفر."
-      )
-      .setColor("#5865F2");
+  await rest.put(
+    Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
+    { body: [setupCommand.toJSON()] }
+  );
 
-    if (CONFIG.TICKET_IMAGE_URL && CONFIG.TICKET_IMAGE_URL.startsWith("http")) {
-      embed.setImage(CONFIG.TICKET_IMAGE_URL);
-    }
+  console.log("تم تسجيل أمر /setup-ticket بنجاح.");
+}
 
-    embed.setFooter({ text: "نظام التذاكر المطور - سيرفر السوالف", iconURL: message.guild.iconURL() });
+client.once("clientReady", async () => {
+  console.log(`البوت متصل: ${client.user.tag}`);
 
-    const selectMenu = new StringSelectMenuBuilder()
-      .setCustomId("select_ticket_type")
-      .setPlaceholder("👇 اختر سبب فتح التذكرة من هنا...")
-      .addOptions([
-        {
-          label: "مساعدة واستفسار عام",
-          description: "استفسارات عامة عن السيرفر أو الفعاليات",
-          value: "general_support",
-          emoji: "🛠️"
-        },
-        {
-          label: "بلاغ عن عضو / شكوى",
-          description: "الإبلاغ عن مخالفة لقوانين السيرفر",
-          value: "report_support",
-          emoji: "🚨"
-        },
-        {
-          label: "اقتراح / فكرة جديدة",
-          description: "شاركنا أفكارك لتطوير الرومات والسيرفر",
-          value: "suggestion_support",
-          emoji: "💡"
-        }
-      ]);
-
-    const row = new ActionRowBuilder().addComponents(selectMenu);
-
-    await message.channel.send({ embeds: [embed], components: [row] });
-    await message.delete().catch(() => {});
+  try {
+    await registerCommand();
+  } catch (error) {
+    console.error("فشل تسجيل أمر السلاش:", error);
   }
 });
 
-// 📌 التفاعل مع القائمة المنسدلة والأزرار (إنشاء وإغلاق التذاكر)
 client.on("interactionCreate", async (interaction) => {
-  if (interaction.isStringSelectMenu() && interaction.customId === "select_ticket_type") {
-    const selectedType = interaction.values[0];
-    const guild = interaction.guild;
-    const user = interaction.user;
+  try {
+    if (interaction.isChatInputCommand() &&
+        interaction.commandName === "setup-ticket") {
+      if (!interaction.inGuild()) {
+        return interaction.reply({
+          content: "هذا الأمر يعمل داخل السيرفر فقط.",
+          ephemeral: true
+        });
+      }
 
-    await interaction.deferReply({ ephemeral: true });
+      if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
+        return interaction.reply({
+          content: "هذا الأمر مخصص للمسؤولين فقط.",
+          ephemeral: true
+        });
+      }
 
-    // التحقق مما إذا كان المستخدم يمتلك تذكرة مفتوحة بالفعل
-    const existingChannel = guild.channels.cache.find(
-      c => c.name === `ticket-${user.username.toLowerCase()}`
-    );
+      const embed = new EmbedBuilder()
+        .setTitle("💬 مركز المساعدة والتواصل للسيرفر")
+        .setDescription(
+          "مرحباً بك في مركز الدعم! 👋\n" +
+          "اختر نوع التذكرة من القائمة أدناه.\n\n" +
+          "🛠️ **مساعدة عامة:** استفسارات عن السيرفر والرتب.\n" +
+          "🚨 **بلاغ / شكوى:** للإبلاغ عن مخالفة أو مشكلة.\n" +
+          "💡 **اقتراح:** شاركنا أفكارك لتطوير السيرفر."
+        )
+        .setColor("#5865F2");
 
-    if (existingChannel) {
-      return interaction.editReply({
-        content: `❌ لديك تذكرة مفتوحة بالفعل ولا يمكنك فتح أخرى: ${existingChannel}`
+      if (CONFIG.TICKET_IMAGE_URL) {
+        embed.setImage(CONFIG.TICKET_IMAGE_URL);
+      }
+
+      if (interaction.guild.iconURL()) {
+        embed.setFooter({
+          text: "نظام التذاكر المطور - سيرفر السوالف",
+          iconURL: interaction.guild.iconURL()
+        });
+      } else {
+        embed.setFooter({ text: "نظام التذاكر المطور - سيرفر السوالف" });
+      }
+
+      const menu = new StringSelectMenuBuilder()
+        .setCustomId("select_ticket_type")
+        .setPlaceholder("👇 اختر سبب فتح التذكرة")
+        .addOptions(
+          {
+            label: "مساعدة واستفسار عام",
+            description: "استفسارات عامة عن السيرفر أو الفعاليات",
+            value: "general_support",
+            emoji: "🛠️"
+          },
+          {
+            label: "بلاغ عن عضو / شكوى",
+            description: "الإبلاغ عن مخالفة لقوانين السيرفر",
+            value: "report_support",
+            emoji: "🚨"
+          },
+          {
+            label: "اقتراح / فكرة جديدة",
+            description: "شاركنا أفكارك لتطوير السيرفر",
+            value: "suggestion_support",
+            emoji: "💡"
+          }
+        );
+
+      await interaction.reply({
+        embeds: [embed],
+        components: [new ActionRowBuilder().addComponents(menu)]
       });
+      return;
     }
 
-    let typeName = "مساعدة-عامة";
-    if (selectedType === "report_support") typeName = "بلاغ";
-    if (selectedType === "suggestion_support") typeName = "اقتراح";
+    if (interaction.isStringSelectMenu() &&
+        interaction.customId === "select_ticket_type") {
+      await interaction.deferReply({ ephemeral: true });
 
-    try {
-      const ticketChannel = await guild.channels.create({
-        name: `ticket-${user.username}`,
+      const guild = interaction.guild;
+      const user = interaction.user;
+      const selectedType = interaction.values[0];
+
+      const existing = guild.channels.cache.find(channel =>
+        channel.type === ChannelType.GuildText &&
+        channel.topic === `ticket-owner:${user.id}`
+      );
+
+      if (existing) {
+        return interaction.editReply({
+          content: `❌ لديك تذكرة مفتوحة بالفعل: ${existing}`
+        });
+      }
+
+      const types = {
+        general_support: "مساعدة عامة",
+        report_support: "بلاغ / شكوى",
+        suggestion_support: "اقتراح"
+      };
+
+      const safeName = user.username
+        .toLowerCase()
+        .replace(/[^a-z0-9-]/g, "")
+        .slice(0, 20) || user.id.slice(-6);
+
+      const permissionOverwrites = [
+        {
+          id: guild.id,
+          deny: [PermissionFlagsBits.ViewChannel]
+        },
+        {
+          id: user.id,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+            PermissionFlagsBits.AttachFiles,
+            PermissionFlagsBits.EmbedLinks
+          ]
+        }
+      ];
+
+      const staffRole = guild.roles.cache.get(CONFIG.STAFF_ROLE_ID);
+      if (staffRole) {
+        permissionOverwrites.push({
+          id: staffRole.id,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+            PermissionFlagsBits.AttachFiles
+          ]
+        });
+      }
+
+      const channelOptions = {
+        name: `ticket-${safeName}`.slice(0, 90),
         type: ChannelType.GuildText,
-        parent: CONFIG.CATEGORY_ID !== "ضع_هنا_آيدي_الكتيجوري" ? CONFIG.CATEGORY_ID : null,
-        permissionOverwrites: [
-          {
-            id: guild.id,
-            deny: [PermissionFlagsBits.ViewChannel]
-          },
-          {
-            id: user.id,
-            allow: [
-              PermissionFlagsBits.ViewChannel,
-              PermissionFlagsBits.SendMessages,
-              PermissionFlagsBits.AttachFiles,
-              PermissionFlagsBits.EmbedLinks
-            ]
-          },
-          {
-            id: CONFIG.STAFF_ROLE_ID !== "ضع_هنا_آيدي_رتبة_الإدارة_أو_الدعم" ? CONFIG.STAFF_ROLE_ID : guild.id,
-            allow: [
-              PermissionFlagsBits.ViewChannel,
-              PermissionFlagsBits.SendMessages,
-              PermissionFlagsBits.AttachFiles
-            ]
-          }
-        ]
-      });
+        topic: `ticket-owner:${user.id}`,
+        permissionOverwrites
+      };
+
+      if (CONFIG.CATEGORY_ID &&
+          guild.channels.cache.has(CONFIG.CATEGORY_ID)) {
+        channelOptions.parent = CONFIG.CATEGORY_ID;
+      }
+
+      const ticketChannel = await guild.channels.create(channelOptions);
 
       const ticketEmbed = new EmbedBuilder()
-        .setTitle(`💬 تذكرة جديدة: ${typeName}`)
+        .setTitle(`💬 تذكرة جديدة: ${types[selectedType] || "دعم"}`)
         .setDescription(
           `أهلاً بك <@${user.id}>!\n\n` +
-          `شكراً لتواصلك معنا. يرجى توضيح مشكلتك أو طلبك بالتفصيل، وسيقوم فريق الإدارة بالرد عليك قريباً.`
+          "يرجى توضيح مشكلتك أو طلبك بالتفصيل، وسيرد فريق الإدارة عليك قريباً."
         )
         .setColor("#57F287")
         .setTimestamp();
@@ -164,33 +232,61 @@ client.on("interactionCreate", async (interaction) => {
       const row = new ActionRowBuilder().addComponents(closeButton);
 
       await ticketChannel.send({
-        content: `<@${user.id}> | <@&${CONFIG.STAFF_ROLE_ID}>`,
+        content: `${user} ${staffRole ? `<@&${staffRole.id}>` : ""}`,
         embeds: [ticketEmbed],
         components: [row]
       });
 
       await interaction.editReply({
-        content: `✅ تم فتح تذكرتك بنجاح في القناة: ${ticketChannel}`
+        content: `✅ تم فتح تذكرتك بنجاح: ${ticketChannel}`
       });
-
-    } catch (error) {
-      console.error(error);
-      await interaction.editReply({
-        content: "❌ حدث خطأ أثناء إنشاء التذكرة. يرجى التأكد من صلاحيات البوت في السيرفر."
-      });
+      return;
     }
-  }
 
-  // زر إغلاق التذكرة
-  if (interaction.isButton() && interaction.customId === "close_ticket") {
-    await interaction.reply({
-      content: "🔒 جاري إغلاق التذكرة وحذف القناة خلال 5 ثوانٍ..."
-    });
+    if (interaction.isButton() &&
+        interaction.customId === "close_ticket") {
+      const member = interaction.member;
+      const isStaff = member?.roles?.cache?.has(CONFIG.STAFF_ROLE_ID);
+      const isAdmin = interaction.memberPermissions?.has(
+        PermissionFlagsBits.Administrator
+      );
 
-    setTimeout(async () => {
-      await interaction.channel.delete().catch(() => {});
-    }, 5000);
+      const isOwner =
+        interaction.channel?.topic === `ticket-owner:${interaction.user.id}`;
+
+      if (!isStaff && !isAdmin && !isOwner) {
+        return interaction.reply({
+          content: "ليس لديك صلاحية إغلاق هذه التذكرة.",
+          ephemeral: true
+        });
+      }
+
+      await interaction.reply({
+        content: "🔒 سيتم حذف التذكرة خلال 5 ثوانٍ."
+      });
+
+      setTimeout(async () => {
+        await interaction.channel?.delete().catch(console.error);
+      }, 5000);
+    }
+  } catch (error) {
+    console.error("Interaction error:", error);
+
+    if (interaction.isRepliable() && !interaction.replied &&
+        !interaction.deferred) {
+      await interaction.reply({
+        content: "حدث خطأ. راجع Logs في الاستضافة.",
+        ephemeral: true
+      }).catch(() => {});
+    } else if (interaction.isRepliable()) {
+      await interaction.editReply({
+        content: "حدث خطأ أثناء تنفيذ الطلب. راجع Logs في الاستضافة."
+      }).catch(() => {});
+    }
   }
 });
 
-client.login(process.env.TOKEN);
+client.login(TOKEN).catch(error => {
+  console.error("فشل تسجيل دخول البوت:", error);
+  process.exit(1);
+});
